@@ -414,6 +414,10 @@ const LS = {
 const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
 const unb64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
 const rnd = () => crypto.getRandomValues(new Uint8Array(32));
+/* El desbloqueo sobrevive al reload del pull-to-refresh: actualizar no es volver a
+   entrar. sessionStorage muere al cerrar la app, así que al abrirla otra vez sí pide. */
+const yaDesbloqueado = () => { try{ return sessionStorage.getItem('abierto')==='1'; }catch{ return false; } };
+const marcaDesbloqueado = () => { try{ sessionStorage.setItem('abierto','1'); }catch{} };
 const lockUI = (msg, btn, skip) => {
   $('#lock').hidden = false;
   $('#lockMsg').textContent = msg;
@@ -433,7 +437,7 @@ async function setupFaceID(){
       authenticatorSelection:{authenticatorAttachment:'platform', userVerification:'required'},
       timeout:60000
     }});
-    LS.set('lockCred', b64(cred.rawId)); LS.del('lockOff');
+    LS.set('lockCred', b64(cred.rawId)); LS.del('lockOff'); marcaDesbloqueado();
     $('#lock').hidden = true; refreshLockBtn(); return true;
   }catch(e){
     lockUI('Face ID no está disponible en este navegador. Puedes entrar igualmente.', 'Reintentar', 'Entrar sin bloqueo');
@@ -447,6 +451,7 @@ async function unlock(auto){
       allowCredentials:[{type:'public-key', id:unb64(LS.get('lockCred'))}],
       userVerification:'required', timeout:60000
     }});
+    marcaDesbloqueado();
     $('#lock').hidden = true;
   }catch(e){
     if(auto===true) return; // el intento automático falló sin ruido; el botón sigue ahí
@@ -464,13 +469,15 @@ $('#cfgLock').onclick = ()=>{
 };
 refreshLockBtn();
 if(LS.get('lockCred')){
-  lockUI('Desbloquea para ver tus gastos.', 'Desbloquear con Face ID', null);
-  setTimeout(()=>unlock(true), 250); // Face ID directo al abrir; el botón queda de respaldo
+  if(!yaDesbloqueado()){
+    lockUI('Desbloquea para ver tus gastos.', 'Desbloquear con Face ID', null);
+    setTimeout(()=>unlock(true), 250); // Face ID directo al abrir; el botón queda de respaldo
+  }
 } else if(!LS.get('lockOff') && navigator.credentials?.create){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 7'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 8'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
