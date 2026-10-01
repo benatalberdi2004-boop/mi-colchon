@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mi Colchón</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mi Colchón">
+<meta name="theme-color" content="#f5f6f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131815" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap">
+<style>
+/* layout: una columna de 560px, móvil primero; el héroe es el gasto del mes */
+:root{
+  --bg:#f5f6f3; --card:#ffffff; --ink:#1d2621; --muted:#5e6a63;
+  --accent:#1e7a5a; --accent-soft:#dcece4; --bad:#b3362c; --bad-soft:#f6e3e1; --line:#e2e6e1;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#131815; --card:#1c2320; --ink:#e7ece9; --muted:#95a19a;
+    --accent:#4fbf94; --accent-soft:#1d3a2f; --bad:#e2695f; --bad-soft:#3a211e; --line:#2a332e;
+    color-scheme:dark;
+  }
+}
+[hidden]{display:none!important;}
+body{background:var(--bg); color:var(--ink); font-family:"Archivo",system-ui,sans-serif; margin:0;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
+.wrap{max-width:560px; margin:0 auto; padding-inline:16px; padding-block:20px 48px; display:flex; flex-direction:column; gap:16px;}
+header{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+h1{font-size:22px; font-weight:800; letter-spacing:-.02em; margin:0;}
+.monthnav{display:flex; align-items:center; gap:4px;}
+.monthnav button{background:var(--card); border:1px solid var(--line); color:var(--ink); border-radius:8px; width:32px; height:32px; font-size:16px; cursor:pointer;}
+#monthLabel{font-size:14px; font-weight:600; min-width:110px; text-align:center; text-transform:capitalize;}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px;}
+.label{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);}
+.big{font-size:40px; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums; line-height:1.1; margin-top:4px;}
+.sub{font-size:14px; color:var(--muted); margin-top:4px;}
+.sub strong{color:var(--ink);}
+.sub.over strong{color:var(--bad);}
+.track{height:8px; background:var(--accent-soft); border-radius:4px; margin-top:12px; overflow:hidden;}
+.track.bad{background:var(--bad-soft);}
+.fill{height:100%; background:var(--accent); border-radius:4px; transition:width .3s;}
+.track.bad .fill{background:var(--bad);}
+@media (prefers-reduced-motion: reduce){ .fill{transition:none;} }
+form.add{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+form.add .full{grid-column:1/-1;}
+input,select{background:var(--bg); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:10px; font:inherit; font-size:15px; width:100%; box-sizing:border-box; min-width:0;}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+button.primary{grid-column:1/-1; background:var(--accent); color:var(--card); border:0; border-radius:8px; padding:12px; font:inherit; font-weight:700; font-size:15px; cursor:pointer;}
+.cats{display:flex; flex-direction:column; gap:10px; margin-top:12px;}
+.catrow{display:grid; grid-template-columns:110px 1fr auto; align-items:center; gap:8px; font-size:13px;}
+.catrow .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.catrow .bar{height:12px; background:var(--accent); border-radius:0 4px 4px 0; min-width:2px;}
+.catrow .val{font-variant-numeric:tabular-nums; color:var(--muted);}
+ul.gastos{list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column;}
+ul.gastos li{display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); font-size:14px;}
+ul.gastos .meta{flex:1; min-width:0;}
+ul.gastos .nota{color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+ul.gastos .imp{font-variant-numeric:tabular-nums; font-weight:600;}
+ul.gastos button{background:none; border:1px solid var(--line); color:var(--muted); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer;}
+ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:600;}
+.empty{color:var(--muted); font-size:14px; padding:16px 0 4px; text-align:center;}
+.colrow{display:flex; gap:8px; margin-top:12px;}
+.colrow input{flex:1;}
+.colrow button{background:var(--accent-soft); color:var(--accent); border:0; border-radius:8px; padding:0 14px; font:inherit; font-weight:700; cursor:pointer;}
+details.ajustes summary{cursor:pointer; font-size:13px; font-weight:600; color:var(--muted);}
+details.ajustes .grid{display:grid; grid-template-columns:1fr; gap:10px; margin-top:12px;}
+details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:4px;}
+#banner{background:var(--bad-soft); color:var(--bad); border-radius:10px; padding:12px; font-size:13px;}
+#lock{position:fixed; inset:0; background:var(--bg); z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center;}
+#lock img{width:76px; border-radius:18px;}
+#lock h2{font-size:20px; font-weight:800; margin:0;}
+#lock p{font-size:14px; color:var(--muted); max-width:300px; margin:0;}
+#lock button.primary{width:100%; max-width:280px;}
+#lock .ghost{background:none; border:0; color:var(--muted); font:inherit; font-size:13px; text-decoration:underline; cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div style="display:flex; align-items:center; gap:9px;">
+      <svg width="30" height="30" viewBox="0 0 48 48" style="color:var(--accent)" aria-hidden="true">
+        <circle cx="24" cy="11" r="9" fill="#f2c94c"/>
+        <circle cx="24" cy="11" r="6" fill="none" stroke="#d9a93a" stroke-width="2.5"/>
+        <rect x="16" y="23" width="16" height="4" rx="2" fill="currentColor" opacity="0.55"/>
+        <rect x="4" y="28" width="40" height="15" rx="7.5" fill="currentColor"/>
+        <circle cx="14" cy="35.5" r="1.8" fill="var(--card)"/>
+        <circle cx="24" cy="35.5" r="1.8" fill="var(--card)"/>
+        <circle cx="34" cy="35.5" r="1.8" fill="var(--card)"/>
+      </svg>
+      <h1>Mi Colchón</h1>
+    </div>
+    <div class="monthnav">
+      <button id="prevM" aria-label="Mes anterior">‹</button>
+      <span id="monthLabel"></span>
+      <button id="nextM" aria-label="Mes siguiente">›</button>
+    </div>
+  </header>
+
+  <div id="banner" hidden></div>
+
+  <section class="card">
+    <div class="label">Gastado este mes</div>
+    <div class="big" id="totalMes">0 €</div>
+    <div class="sub" id="presuLine">Fija tu presupuesto mensual en Ajustes, abajo.</div>
+    <div class="track" id="presuTrack" hidden><div class="fill" id="presuFill"></div></div>
+    <div class="sub" id="ritmoLine" hidden></div>
+  </section>
+
+  <section class="card">
+    <div class="label">Apuntar gasto</div>
+    <form class="add" id="addForm" style="margin-top:12px">
+      <input id="fImporte" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="€" required aria-label="Importe en euros">
+      <select id="fCat" aria-label="Categoría">
+        <option>Comida</option><option>Casa</option><option>Transporte</option><option>Ocio</option>
+        <option>Suscripciones</option><option>Salud</option><option>Ropa</option><option>Otros</option>
+      </select>
+      <input id="fFecha" type="date" class="full" aria-label="Fecha">
+      <input id="fNota" type="text" class="full" placeholder="Nota (opcional)" maxlength="80">
+      <button type="submit" class="primary" id="addBtn">Apuntar gasto</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="label">Por categoría</div>
+    <div class="cats" id="cats"></div>
+    <div class="label" style="margin-top:20px">Movimientos</div>
+    <ul class="gastos" id="lista"></ul>
+    <div class="empty" id="emptyMsg">Aún no hay gastos este mes. Apunta el primero arriba.</div>
+  </section>
+
+  <section class="card">
+    <div class="label">Colchón</div>
+    <div class="big" id="colActual">0 €</div>
+    <div class="sub" id="colDesglose"><strong>0 €</strong> en efectivo · <strong>0 €</strong> en el banco</div>
+    <div class="sub" id="colMeta">Fija tu objetivo en Ajustes.</div>
+    <div class="track" id="colTrack" hidden><div class="fill" id="colFill"></div></div>
+    <div class="colrow">
+      <input id="colAdd" type="number" step="0.01" inputmode="decimal" placeholder="Aportar (€)" aria-label="Aportación al colchón">
+      <select id="colDest" aria-label="Dónde lo guardas" style="flex:0 0 auto; width:auto;">
+        <option value="efectivo">Efectivo</option>
+        <option value="banco">Banco</option>
+      </select>
+      <button id="colAddBtn" type="button">Añadir</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <details class="ajustes" id="ajustes">
+      <summary>Ajustes</summary>
+      <div class="grid">
+        <label>Presupuesto mensual de gasto (€)<input id="cfgPresu" type="number" step="1" min="0"></label>
+        <label>Objetivo del colchón (€)<input id="cfgObj" type="number" step="1" min="0"></label>
+        <label>Colchón en efectivo (€)<input id="cfgColEf" type="number" step="0.01" min="0"></label>
+        <label>Colchón en el banco (€)<input id="cfgColBa" type="number" step="0.01" min="0"></label>
+        <button type="button" class="primary" id="cfgSave">Guardar ajustes</button>
+        <button type="button" class="primary" id="cfgLock" style="background:var(--accent-soft); color:var(--accent)">Activar bloqueo con Face ID</button>
+        <button type="button" class="primary" id="bkDown" style="background:var(--accent-soft); color:var(--accent)">Descargar copia de seguridad</button>
+        <label>Restaurar copia de seguridad<input id="bkFile" type="file" accept=".json,application/json"></label>
+      </div>
+    </details>
+  </section>
+</div>
+
+<div id="lock" hidden>
+  <img src="icon-180.png" alt="">
+  <h2>Mi Colchón</h2>
+  <p id="lockMsg"></p>
+  <button type="button" class="primary" id="lockBtn"></button>
+  <button type="button" class="ghost" id="lockSkip" hidden></button>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const eur = new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:2});
+const fmt = n => eur.format(n);
+const hoy = () => new Date();
+const hoyLocal = () => new Date(hoy().getTime() - hoy().getTimezoneOffset()*60000);
+let ym = hoyLocal().toISOString().slice(0,7);
+
+/* Los datos viven SOLO en este dispositivo (localStorage). La copia de
+   seguridad de Ajustes es la única red de seguridad: descárgala de vez
+   en cuando. */
+let data = {gastos:[], config:{}};
+const BANNER = t => { const b=$('#banner'); b.textContent=t; b.hidden=false; };
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem('mc')); if(d && Array.isArray(d.gastos)) data = d; }
+  catch{}
+  if(!data.config) data.config = {};
+}
+function save(){
+  try{ localStorage.setItem('mc', JSON.stringify(data)); $('#banner').hidden = true; }
+  catch{ BANNER('No se puede guardar: el navegador tiene bloqueado el almacenamiento.'); }
+}
+
+$('#fFecha').value = hoyLocal().toISOString().slice(0,10);
+
+function labelMonth(){
+  const [y,m] = ym.split('-').map(Number);
+  $('#monthLabel').textContent = new Date(y, m-1, 1).toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+}
+function shiftMonth(d){
+  const [y,m] = ym.split('-').map(Number);
+  const nd = new Date(y, m-1+d, 1);
+  ym = `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
+  labelMonth(); render();
+}
+$('#prevM').onclick = ()=>shiftMonth(-1);
+$('#nextM').onclick = ()=>shiftMonth(1);
+labelMonth();
+
+const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function render(){
+  const config = data.config;
+  const gastos = data.gastos.filter(g=>g.mes===ym);
+  const total = gastos.reduce((s,g)=>s+(+g.importe||0),0);
+  $('#totalMes').textContent = fmt(total);
+  const presu = +config.presupuesto||0;
+  const now = hoyLocal();
+  const esMesActual = ym === now.toISOString().slice(0,7);
+  if(presu>0){
+    const quedan = presu-total;
+    const line = $('#presuLine');
+    line.innerHTML = quedan>=0
+      ? `Quedan <strong>${fmt(quedan)}</strong> de un presupuesto de ${fmt(presu)}.`
+      : `Te has pasado <strong>${fmt(-quedan)}</strong> del presupuesto de ${fmt(presu)}.`;
+    line.classList.toggle('over', quedan<0);
+    const track = $('#presuTrack');
+    track.hidden = false;
+    track.classList.toggle('bad', quedan<0);
+    $('#presuFill').style.width = Math.min(100, total/presu*100)+'%';
+    const ritmo = $('#ritmoLine');
+    if(esMesActual && quedan>0){
+      const [y,m] = ym.split('-').map(Number);
+      const diasMes = new Date(y, m, 0).getDate();
+      const diasRestantes = diasMes - now.getUTCDate() + 1;
+      ritmo.hidden = false;
+      ritmo.textContent = `Puedes gastar ${fmt(quedan/diasRestantes)} al día durante los ${diasRestantes} días que quedan.`;
+    } else ritmo.hidden = true;
+  } else {
+    $('#presuLine').textContent = 'Fija tu presupuesto mensual en Ajustes, abajo.';
+    $('#presuTrack').hidden = true; $('#ritmoLine').hidden = true;
+  }
+
+  const porCat = {};
+  for(const g of gastos) porCat[g.categoria||'Otros'] = (porCat[g.categoria||'Otros']||0)+(+g.importe||0);
+  const cats = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+  const max = cats.length ? cats[0][1] : 1;
+  $('#cats').innerHTML = cats.map(([c,v])=>
+    `<div class="catrow"><span class="name">${esc(c)}</span><div><div class="bar" style="width:${Math.max(2, v/max*100)}%"></div></div><span class="val">${fmt(v)}</span></div>`
+  ).join('');
+
+  const orden = [...gastos].sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||'') || (b.creado||0)-(a.creado||0));
+  $('#lista').innerHTML = orden.map(g=>{
+    const d = g.fecha ? new Date(g.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'}) : '';
+    return `<li><div class="meta"><div>${esc(g.categoria||'Otros')} · <span style="color:var(--muted)">${d}</span></div>${g.nota?`<div class="nota">${esc(g.nota)}</div>`:''}</div><span class="imp">${fmt(+g.importe||0)}</span><button data-del="${g.id}">Borrar</button></li>`;
+  }).join('');
+  $('#emptyMsg').hidden = gastos.length>0;
+
+  const ef = +config.colchonEfectivo||0, ba = +config.colchonBanco||0;
+  const col = ef+ba, obj = +config.objetivoColchon||0;
+  $('#colActual').textContent = fmt(col);
+  $('#colDesglose').innerHTML = `<strong>${fmt(ef)}</strong> en efectivo · <strong>${fmt(ba)}</strong> en el banco`;
+  if(obj>0){
+    $('#colMeta').innerHTML = col>=obj
+      ? `¡Objetivo de ${fmt(obj)} conseguido!`
+      : `Te faltan <strong>${fmt(obj-col)}</strong> para tu objetivo de ${fmt(obj)}.`;
+    $('#colTrack').hidden = false;
+    $('#colFill').style.width = Math.min(100, col/obj*100)+'%';
+  } else {
+    $('#colMeta').textContent = 'Fija tu objetivo en Ajustes.';
+    $('#colTrack').hidden = true;
+  }
+}
+
+$('#addForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const importe = parseFloat($('#fImporte').value);
+  const fecha = $('#fFecha').value;
+  if(!(importe>0) || !fecha) return;
+  data.gastos.push({
+    id: crypto.randomUUID(), importe, fecha, mes: fecha.slice(0,7),
+    categoria: $('#fCat').value, nota: $('#fNota').value.trim(), creado: Date.now()
+  });
+  save();
+  $('#fImporte').value=''; $('#fNota').value='';
+  if(fecha.slice(0,7)!==ym){ ym = fecha.slice(0,7); labelMonth(); }
+  render();
+});
+
+$('#lista').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-del]');
+  if(!btn) return;
+  if(btn.dataset.armed){
+    data.gastos = data.gastos.filter(g=>g.id!==btn.dataset.del);
+    save(); render(); return;
+  }
+  btn.dataset.armed='1'; btn.classList.add('armed'); btn.textContent='¿Seguro?';
+  setTimeout(()=>{ delete btn.dataset.armed; btn.classList.remove('armed'); btn.textContent='Borrar'; }, 3000);
+});
+
+function fillCfg(){
+  const c = data.config;
+  $('#cfgPresu').value = c.presupuesto??'';
+  $('#cfgObj').value = c.objetivoColchon??'';
+  $('#cfgColEf').value = c.colchonEfectivo??'';
+  $('#cfgColBa').value = c.colchonBanco??'';
+}
+function saveConfig(patch){
+  data.config = {
+    presupuesto:+data.config.presupuesto||0,
+    objetivoColchon:+data.config.objetivoColchon||0,
+    colchonEfectivo:+data.config.colchonEfectivo||0,
+    colchonBanco:+data.config.colchonBanco||0,
+    ...patch
+  };
+  save(); fillCfg(); render();
+}
+$('#cfgSave').onclick = ()=>{
+  saveConfig({
+    presupuesto: parseFloat($('#cfgPresu').value)||0,
+    objetivoColchon: parseFloat($('#cfgObj').value)||0,
+    colchonEfectivo: parseFloat($('#cfgColEf').value)||0,
+    colchonBanco: parseFloat($('#cfgColBa').value)||0
+  });
+  $('#ajustes').open = false;
+};
+$('#colAddBtn').onclick = ()=>{
+  const x = parseFloat($('#colAdd').value);
+  if(!(x>0)) return;
+  const campo = $('#colDest').value==='banco' ? 'colchonBanco' : 'colchonEfectivo';
+  saveConfig({[campo]:(+data.config[campo]||0)+x});
+  $('#colAdd').value='';
+};
+
+$('#bkDown').onclick = ()=>{
+  const blob = new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mi-colchon-${hoyLocal().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+$('#bkFile').onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t=>{
+    try{
+      const d = JSON.parse(t);
+      if(!d || !Array.isArray(d.gastos) || typeof d.config!=='object') throw 0;
+      data = d; save(); fillCfg(); render();
+    }catch{ BANNER('Ese archivo no es una copia de seguridad válida.'); }
+  });
+  e.target.value='';
+};
+
+/* Bloqueo con Face ID (WebAuthn de plataforma: en iPhone, Face ID con el
+   código del móvil como respaldo). Es una cortina de privacidad local. */
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch{ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch{} },
+  del(k){ try{ localStorage.removeItem(k); }catch{} }
+};
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+const rnd = () => crypto.getRandomValues(new Uint8Array(32));
+const lockUI = (msg, btn, skip) => {
+  $('#lock').hidden = false;
+  $('#lockMsg').textContent = msg;
+  $('#lockBtn').textContent = btn;
+  $('#lockSkip').hidden = !skip;
+  if(skip) $('#lockSkip').textContent = skip;
+};
+function refreshLockBtn(){
+  $('#cfgLock').textContent = LS.get('lockCred') ? 'Desactivar bloqueo con Face ID' : 'Activar bloqueo con Face ID';
+}
+async function setupFaceID(){
+  try{
+    const cred = await navigator.credentials.create({publicKey:{
+      challenge:rnd(), rp:{name:'Mi Colchón'},
+      user:{id:rnd(), name:'yo', displayName:'Yo'},
+      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:'platform', userVerification:'required'},
+      timeout:60000
+    }});
+    LS.set('lockCred', b64(cred.rawId)); LS.del('lockOff');
+    $('#lock').hidden = true; refreshLockBtn(); return true;
+  }catch(e){
+    lockUI('Face ID no está disponible en este navegador. Puedes entrar igualmente.', 'Reintentar', 'Entrar sin bloqueo');
+    return false;
+  }
+}
+async function unlock(){
+  try{
+    await navigator.credentials.get({publicKey:{
+      challenge:rnd(),
+      allowCredentials:[{type:'public-key', id:unb64(LS.get('lockCred'))}],
+      userVerification:'required', timeout:60000
+    }});
+    $('#lock').hidden = true;
+  }catch(e){
+    lockUI('No se ha podido verificar. Vuelve a intentarlo.', 'Desbloquear con Face ID', 'Quitar el bloqueo y entrar');
+  }
+}
+$('#lockBtn').onclick = ()=> LS.get('lockCred') ? unlock() : setupFaceID();
+$('#lockSkip').onclick = ()=>{
+  LS.del('lockCred'); LS.set('lockOff','1');
+  $('#lock').hidden = true; refreshLockBtn();
+};
+$('#cfgLock').onclick = ()=>{
+  if(LS.get('lockCred')){ LS.del('lockCred'); LS.set('lockOff','1'); refreshLockBtn(); }
+  else { lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'Ahora no'); }
+};
+refreshLockBtn();
+if(LS.get('lockCred')){
+  lockUI('Desbloquea para ver tus gastos.', 'Desbloquear con Face ID', null);
+} else if(!LS.get('lockOff') && navigator.credentials?.create){
+  lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
+}
+
+load(); fillCfg(); render();
+navigator.serviceWorker?.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
