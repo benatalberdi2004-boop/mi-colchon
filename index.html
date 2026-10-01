@@ -145,6 +145,12 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
   </section>
 
   <section class="card">
+    <div class="label">En el banco</div>
+    <div class="big" id="bancoActual">0 €</div>
+    <div class="sub" style="font-size:12px">Tu dinero del día a día. Los gastos pagados con banco se descuentan solos.</div>
+  </section>
+
+  <section class="card">
     <div class="label">Colchón</div>
     <div class="big" id="colActual">0 €</div>
     <div class="sub" style="font-size:12px">Tu efectivo, aparte del banco. Solo para emergencias: los gastos pagados en efectivo se descuentan solos.</div>
@@ -162,6 +168,7 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
       <div class="grid">
         <label>Presupuesto mensual de gasto (€)<input id="cfgPresu" type="number" step="1" min="0"></label>
         <label>Objetivo del colchón (€)<input id="cfgObj" type="number" step="1" min="0"></label>
+        <label>Dinero en el banco (€)<input id="cfgBanco" type="number" step="0.01"></label>
         <label>Colchón actual (€)<input id="cfgColEf" type="number" step="0.01" min="0"></label>
         <button type="button" class="primary" id="cfgSave">Guardar ajustes</button>
         <button type="button" class="primary" id="cfgLock" style="background:var(--accent-soft); color:var(--accent)">Activar bloqueo con Face ID</button>
@@ -276,6 +283,7 @@ function render(){
   }).join('');
   $('#emptyMsg').hidden = gastos.length>0;
 
+  $('#bancoActual').textContent = fmt(+config.banco||0);
   const col = +config.colchonEfectivo||0, obj = +config.objetivoColchon||0;
   $('#colActual').textContent = fmt(col);
   if(obj>0){
@@ -300,8 +308,9 @@ $('#addForm').addEventListener('submit', e=>{
     id: crypto.randomUUID(), importe, fecha, mes: fecha.slice(0,7), pago,
     categoria: $('#fCat').value, nota: $('#fNota').value.trim(), creado: Date.now()
   });
-  // el colchón ES el efectivo: pagar en efectivo lo descuenta solo
+  // cada gasto descuenta de su fuente: efectivo = colchón, banco = banco
   if(pago==='efectivo') data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) - importe;
+  else data.config.banco = (+data.config.banco||0) - importe;
   save(); fillCfg();
   $('#fImporte').value=''; $('#fNota').value='';
   if(fecha.slice(0,7)!==ym){ ym = fecha.slice(0,7); labelMonth(); }
@@ -314,6 +323,7 @@ $('#lista').addEventListener('click', e=>{
   if(btn.dataset.armed){
     const g = data.gastos.find(x=>x.id===btn.dataset.del);
     if(g?.pago==='efectivo') data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) + (+g.importe||0);
+    else if(g?.pago==='banco') data.config.banco = (+data.config.banco||0) + (+g.importe||0);
     data.gastos = data.gastos.filter(x=>x.id!==btn.dataset.del);
     save(); fillCfg(); render(); return;
   }
@@ -325,12 +335,14 @@ function fillCfg(){
   const c = data.config;
   $('#cfgPresu').value = c.presupuesto??'';
   $('#cfgObj').value = c.objetivoColchon??'';
+  $('#cfgBanco').value = c.banco??'';
   $('#cfgColEf').value = c.colchonEfectivo??'';
 }
 function saveConfig(patch){
   data.config = {
     presupuesto:+data.config.presupuesto||0,
     objetivoColchon:+data.config.objetivoColchon||0,
+    banco:+data.config.banco||0,
     colchonEfectivo:+data.config.colchonEfectivo||0,
     ...patch
   };
@@ -340,6 +352,7 @@ $('#cfgSave').onclick = ()=>{
   saveConfig({
     presupuesto: parseFloat($('#cfgPresu').value)||0,
     objetivoColchon: parseFloat($('#cfgObj').value)||0,
+    banco: parseFloat($('#cfgBanco').value)||0,
     colchonEfectivo: parseFloat($('#cfgColEf').value)||0
   });
   $('#ajustes').open = false;
@@ -437,7 +450,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 3'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 4'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
