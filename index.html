@@ -126,7 +126,7 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
       </select>
       <select id="fPago" aria-label="Pagado con">
         <option value="banco">Banco</option>
-        <option value="efectivo">Efectivo</option>
+        <option value="efectivo">Efectivo (colchón)</option>
       </select>
       <input id="fFecha" type="date" aria-label="Fecha">
       <input id="fNota" type="text" class="full" placeholder="Nota (opcional)" maxlength="80">
@@ -268,7 +268,7 @@ function render(){
   const orden = [...gastos].sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||'') || (b.creado||0)-(a.creado||0));
   $('#lista').innerHTML = orden.map(g=>{
     const d = g.fecha ? new Date(g.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'}) : '';
-    const pago = g.pago==='efectivo' ? ' · efectivo' : '';
+    const pago = g.pago==='efectivo' ? '</span><span style="color:var(--bad); font-weight:600"> · colchón' : '';
     return `<li><div class="meta"><div>${esc(g.categoria||'Otros')} · <span style="color:var(--muted)">${d}${pago}</span></div>${g.nota?`<div class="nota">${esc(g.nota)}</div>`:''}</div><span class="imp">${fmt(+g.importe||0)}</span><button data-del="${g.id}">Borrar</button></li>`;
   }).join('');
   $('#emptyMsg').hidden = gastos.length>0;
