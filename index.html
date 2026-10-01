@@ -27,6 +27,7 @@
   }
 }
 [hidden]{display:none!important;}
+html,body{overflow-x:hidden; max-width:100%;}
 body{background:var(--bg); color:var(--ink); font-family:"Archivo",system-ui,sans-serif; margin:0;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
 .wrap{max-width:560px; margin:0 auto; padding-inline:16px; padding-block:20px 48px; display:flex; flex-direction:column; gap:16px;}
@@ -48,7 +49,10 @@ h1{font-size:22px; font-weight:800; letter-spacing:-.02em; margin:0;}
 @media (prefers-reduced-motion: reduce){ .fill{transition:none;} }
 form.add{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 form.add .full{grid-column:1/-1;}
-input,select{background:var(--bg); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:10px; font:inherit; font-size:15px; width:100%; box-sizing:border-box; min-width:0;}
+input,select{background:var(--bg); border:1px solid var(--line); color:var(--ink); border-radius:8px; padding:10px; font:inherit; font-size:15px; width:100%; box-sizing:border-box; min-width:0; min-height:44px;}
+input[type="date"]{-webkit-appearance:none; appearance:none;}
+input::-webkit-date-and-time-value{text-align:left; margin:0;}
+.colrow input{width:auto;}
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
 button.primary{grid-column:1/-1; background:var(--accent); color:var(--card); border:0; border-radius:8px; padding:12px; font:inherit; font-weight:700; font-size:15px; cursor:pointer;}
 .cats{display:flex; flex-direction:column; gap:10px; margin-top:12px;}
@@ -120,7 +124,11 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
         <option>Comida</option><option>Casa</option><option>Transporte</option><option>Ocio</option>
         <option>Suscripciones</option><option>Salud</option><option>Ropa</option><option>Otros</option>
       </select>
-      <input id="fFecha" type="date" class="full" aria-label="Fecha">
+      <select id="fPago" aria-label="Pagado con">
+        <option value="banco">Banco</option>
+        <option value="efectivo">Efectivo</option>
+      </select>
+      <input id="fFecha" type="date" aria-label="Fecha">
       <input id="fNota" type="text" class="full" placeholder="Nota (opcional)" maxlength="80">
       <button type="submit" class="primary" id="addBtn">Apuntar gasto</button>
     </form>
@@ -138,6 +146,7 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
     <div class="label">Colchón</div>
     <div class="big" id="colActual">0 €</div>
     <div class="sub" id="colDesglose"><strong>0 €</strong> en efectivo · <strong>0 €</strong> en el banco</div>
+    <div class="sub" style="font-size:12px">El efectivo es tu colchón: los gastos pagados en efectivo se descuentan solos.</div>
     <div class="sub" id="colMeta">Fija tu objetivo en Ajustes.</div>
     <div class="track" id="colTrack" hidden><div class="fill" id="colFill"></div></div>
     <div class="colrow">
@@ -259,7 +268,8 @@ function render(){
   const orden = [...gastos].sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||'') || (b.creado||0)-(a.creado||0));
   $('#lista').innerHTML = orden.map(g=>{
     const d = g.fecha ? new Date(g.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'}) : '';
-    return `<li><div class="meta"><div>${esc(g.categoria||'Otros')} · <span style="color:var(--muted)">${d}</span></div>${g.nota?`<div class="nota">${esc(g.nota)}</div>`:''}</div><span class="imp">${fmt(+g.importe||0)}</span><button data-del="${g.id}">Borrar</button></li>`;
+    const pago = g.pago==='efectivo' ? ' · efectivo' : '';
+    return `<li><div class="meta"><div>${esc(g.categoria||'Otros')} · <span style="color:var(--muted)">${d}${pago}</span></div>${g.nota?`<div class="nota">${esc(g.nota)}</div>`:''}</div><span class="imp">${fmt(+g.importe||0)}</span><button data-del="${g.id}">Borrar</button></li>`;
   }).join('');
   $('#emptyMsg').hidden = gastos.length>0;
 
@@ -284,11 +294,14 @@ $('#addForm').addEventListener('submit', e=>{
   const importe = parseFloat($('#fImporte').value);
   const fecha = $('#fFecha').value;
   if(!(importe>0) || !fecha) return;
+  const pago = $('#fPago').value;
   data.gastos.push({
-    id: crypto.randomUUID(), importe, fecha, mes: fecha.slice(0,7),
+    id: crypto.randomUUID(), importe, fecha, mes: fecha.slice(0,7), pago,
     categoria: $('#fCat').value, nota: $('#fNota').value.trim(), creado: Date.now()
   });
-  save();
+  // el colchón ES el efectivo: pagar en efectivo lo descuenta solo
+  if(pago==='efectivo') data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) - importe;
+  save(); fillCfg();
   $('#fImporte').value=''; $('#fNota').value='';
   if(fecha.slice(0,7)!==ym){ ym = fecha.slice(0,7); labelMonth(); }
   render();
@@ -298,8 +311,10 @@ $('#lista').addEventListener('click', e=>{
   const btn = e.target.closest('button[data-del]');
   if(!btn) return;
   if(btn.dataset.armed){
-    data.gastos = data.gastos.filter(g=>g.id!==btn.dataset.del);
-    save(); render(); return;
+    const g = data.gastos.find(x=>x.id===btn.dataset.del);
+    if(g?.pago==='efectivo') data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) + (+g.importe||0);
+    data.gastos = data.gastos.filter(x=>x.id!==btn.dataset.del);
+    save(); fillCfg(); render(); return;
   }
   btn.dataset.armed='1'; btn.classList.add('armed'); btn.textContent='¿Seguro?';
   setTimeout(()=>{ delete btn.dataset.armed; btn.classList.remove('armed'); btn.textContent='Borrar'; }, 3000);
@@ -395,7 +410,7 @@ async function setupFaceID(){
     return false;
   }
 }
-async function unlock(){
+async function unlock(auto){
   try{
     await navigator.credentials.get({publicKey:{
       challenge:rnd(),
@@ -404,6 +419,7 @@ async function unlock(){
     }});
     $('#lock').hidden = true;
   }catch(e){
+    if(auto===true) return; // el intento automático falló sin ruido; el botón sigue ahí
     lockUI('No se ha podido verificar. Vuelve a intentarlo.', 'Desbloquear con Face ID', 'Quitar el bloqueo y entrar');
   }
 }
@@ -419,6 +435,7 @@ $('#cfgLock').onclick = ()=>{
 refreshLockBtn();
 if(LS.get('lockCred')){
   lockUI('Desbloquea para ver tus gastos.', 'Desbloquear con Face ID', null);
+  setTimeout(()=>unlock(true), 250); // Face ID directo al abrir; el botón queda de respaldo
 } else if(!LS.get('lockOff') && navigator.credentials?.create){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
