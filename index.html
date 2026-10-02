@@ -169,7 +169,10 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
     </div>
     <div class="label" style="margin-top:16px">Aportaciones por mes</div>
     <div id="colAportes" class="sub"></div>
-    <button type="button" class="edit" id="aporteUndo" style="margin-top:10px" hidden>Deshacer última aportación</button>
+    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
+      <button type="button" class="edit" id="aporteReg">Apuntar aporte ya sumado</button>
+      <button type="button" class="edit" id="aporteUndo" hidden>Deshacer última aportación</button>
+    </div>
   </section>
 
   <section class="card">
@@ -436,9 +439,18 @@ $('#colAddBtn').onclick = ()=>{
   saveConfig({colchonEfectivo:(+data.config.colchonEfectivo||0)+x});
   $('#colAdd').value='';
 };
+$('#aporteReg').onclick = ()=>{
+  // registra la aportación en el mes sin tocar el saldo (ya estaba contada)
+  const v = parseFloat(String(prompt('Aporte ya incluido en el saldo (€):') ?? '').replace(',','.'));
+  if(!(v>0)) return;
+  data.aportes.push({id:crypto.randomUUID(), mes:hoyLocal().toISOString().slice(0,7), importe:v, sinSumar:true, creado:Date.now()});
+  save(); render();
+};
 $('#aporteUndo').onclick = ()=>{
   const a = data.aportes.pop();
-  if(a) saveConfig({colchonEfectivo:(+data.config.colchonEfectivo||0)-(+a.importe||0)});
+  if(!a) return;
+  if(a.sinSumar){ save(); render(); }
+  else saveConfig({colchonEfectivo:(+data.config.colchonEfectivo||0)-(+a.importe||0)});
 };
 $('#planBtn').onclick = ()=> saveConfig({presupuesto: +$('#planBtn').dataset.gasto||0});
 $('#bancoAddBtn').onclick = ()=>{
@@ -542,7 +554,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 10'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 11'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
