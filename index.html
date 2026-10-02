@@ -217,7 +217,7 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     </details>
   </section>
 
-  <section class="card" data-tab="ahorro">
+  <section class="card" data-tab="plan">
     <div class="cardhead"><div class="label">Objetivos</div><button type="button" class="edit" id="objAdd">Añadir</button></div>
     <div class="sub" id="objList" style="margin-top:8px"></div>
   </section>
@@ -743,7 +743,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 16'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 17'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
