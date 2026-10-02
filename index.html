@@ -33,10 +33,10 @@ body{background:var(--bg); color:var(--ink); font-family:"Archivo",system-ui,san
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
 .wrap{max-width:560px; margin:0 auto; padding-inline:16px; padding-block:20px 48px; display:flex; flex-direction:column; gap:16px;}
 header{display:flex; align-items:center; justify-content:space-between; gap:8px;}
-h1{font-size:22px; font-weight:800; letter-spacing:-.02em; margin:0;}
+h1{font-size:19px; font-weight:800; letter-spacing:-.02em; margin:0;}
 .monthnav{display:flex; align-items:center; gap:4px;}
 .monthnav button{background:var(--card); border:1px solid var(--line); color:var(--ink); border-radius:8px; width:32px; height:32px; font-size:16px; cursor:pointer;}
-#monthLabel{font-size:14px; font-weight:600; min-width:76px; text-align:center; text-transform:capitalize;}
+#monthLabel{font-size:14px; font-weight:600; text-align:center; text-transform:capitalize; white-space:nowrap;}
 .cardhead{display:flex; align-items:center; justify-content:space-between;}
 button.edit{background:none; border:1px solid var(--line); color:var(--muted); border-radius:6px; padding:4px 10px; font:inherit; font-size:12px; font-weight:600; cursor:pointer;}
 .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px;}
@@ -76,9 +76,11 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
 .colrow{display:flex; gap:8px; margin-top:12px;}
 .colrow input{flex:1;}
 .colrow button{background:var(--accent-soft); color:var(--accent); border:0; border-radius:8px; padding:0 14px; font:inherit; font-weight:700; cursor:pointer;}
-details.ajustes summary{cursor:pointer; font-size:13px; font-weight:600; color:var(--muted);}
-details.ajustes .grid{display:grid; grid-template-columns:1fr; gap:10px; margin-top:12px;}
-details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:4px;}
+#ajustesPanel{position:fixed; inset:0; background:var(--bg); z-index:9; overflow-y:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 32px);}
+#ajustesPanel .inner{max-width:560px; margin:0 auto;}
+#ajustesPanel .grid{display:grid; grid-template-columns:1fr; gap:10px; margin-top:16px;}
+#ajustesPanel label{font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:4px;}
 #banner{background:var(--bad-soft); color:var(--bad); border-radius:10px; padding:12px; font-size:13px;}
 #lock{position:fixed; inset:0; background:var(--bg); z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center;}
 #lock img{width:76px; border-radius:18px;}
@@ -108,6 +110,7 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
       <button id="prevM" aria-label="Mes anterior">‹</button>
       <span id="monthLabel"></span>
       <button id="nextM" aria-label="Mes siguiente">›</button>
+      <button id="ajustesBtn" aria-label="Ajustes">⚙︎</button>
     </div>
   </header>
 
@@ -119,6 +122,11 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
     <div class="sub" id="presuLine">Fija tu presupuesto mensual en Ajustes, abajo.</div>
     <div class="track" id="presuTrack" hidden><div class="fill" id="presuFill"></div></div>
     <div class="sub" id="ritmoLine" hidden></div>
+  </section>
+
+  <section class="card" id="resumenCard" hidden>
+    <div class="label">Resumen del mes</div>
+    <div class="sub" id="resumenTxt" style="margin-top:8px"></div>
   </section>
 
   <section class="card">
@@ -180,26 +188,42 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
     <div class="sub" id="planTexto" style="margin-top:8px"></div>
     <div class="sub" id="planLargo" style="font-size:12px"></div>
     <button type="button" class="primary" id="planBtn" style="margin-top:12px; width:100%" hidden></button>
-  </section>
-
-  <section class="card">
-    <details class="ajustes" id="ajustes">
-      <summary>Ajustes</summary>
-      <div class="grid">
-        <label>Pensión mensual (€)<input id="cfgPension" type="number" step="0.01" min="0"></label>
-        <label>Nómina mensual (€)<input id="cfgNomina" type="number" step="0.01" min="0"></label>
-        <label>Presupuesto mensual de gasto (€)<input id="cfgPresu" type="number" step="1" min="0"></label>
-        <label>Objetivo del colchón (€)<input id="cfgObj" type="number" step="1" min="0"></label>
-        <label>Dinero en el banco (€)<input id="cfgBanco" type="number" step="0.01"></label>
-        <label>Colchón actual (€)<input id="cfgColEf" type="number" step="0.01" min="0"></label>
-        <button type="button" class="primary" id="cfgSave">Guardar ajustes</button>
-        <button type="button" class="primary" id="cfgLock" style="background:var(--accent-soft); color:var(--accent)">Activar bloqueo con Face ID</button>
-        <button type="button" class="primary" id="bkDown" style="background:var(--accent-soft); color:var(--accent)">Descargar copia de seguridad</button>
-        <label>Restaurar copia de seguridad<input id="bkFile" type="file" accept=".json,application/json"></label>
-        <div style="font-size:12px; color:var(--muted); text-align:center" id="appVer"></div>
+    <details style="margin-top:12px">
+      <summary style="font-size:13px; font-weight:600; color:var(--muted); cursor:pointer">Cómo invertir lo ahorrado</summary>
+      <div class="sub" style="font-size:13px; line-height:1.5">
+        <strong>1.</strong> Primero el colchón completo (3-6 meses de gasto). Ese dinero no se invierte: es tu red.<br>
+        <strong>2.</strong> Lo que sobre cada mes, a un fondo indexado global (MSCI World o S&amp;P 500) con aportación automática mensual y comisiones por debajo del 0,5 %.<br>
+        <strong>3.</strong> No mires las noticias ni el mercado: aportar lo mismo todos los meses gana a intentar adivinar el momento. Si cae, estás comprando con rebaja — a tu edad te sobran décadas.<br>
+        <strong>4.</strong> Nada de cripto ni acciones sueltas con dinero que te duela perder.<br>
+        <span style="color:var(--muted)">Este plan no cambia con la situación del mundo: esa es justo su ventaja.</span>
       </div>
     </details>
   </section>
+
+  <section class="card">
+    <div class="cardhead"><div class="label">Objetivos</div><button type="button" class="edit" id="objAdd">Añadir</button></div>
+    <div class="sub" id="objList" style="margin-top:8px"></div>
+  </section>
+
+</div>
+
+<div id="ajustesPanel" hidden>
+  <div class="inner">
+    <div class="cardhead"><h2 style="font-size:20px; font-weight:800; margin:0">Ajustes</h2><button type="button" class="edit" id="ajustesCerrar">Cerrar</button></div>
+    <div class="grid">
+      <label>Pensión mensual (€)<input id="cfgPension" type="number" step="0.01" min="0"></label>
+      <label>Nómina mensual (€)<input id="cfgNomina" type="number" step="0.01" min="0"></label>
+      <label>Presupuesto mensual de gasto (€)<input id="cfgPresu" type="number" step="1" min="0"></label>
+      <label>Objetivo del colchón (€)<input id="cfgObj" type="number" step="1" min="0"></label>
+      <label>Dinero en el banco (€)<input id="cfgBanco" type="number" step="0.01"></label>
+      <label>Colchón actual (€)<input id="cfgColEf" type="number" step="0.01" min="0"></label>
+      <button type="button" class="primary" id="cfgSave">Guardar ajustes</button>
+      <button type="button" class="primary" id="cfgLock" style="background:var(--accent-soft); color:var(--accent)">Activar bloqueo con Face ID</button>
+      <button type="button" class="primary" id="bkDown" style="background:var(--accent-soft); color:var(--accent)">Descargar copia de seguridad</button>
+      <label>Restaurar copia de seguridad<input id="bkFile" type="file" accept=".json,application/json"></label>
+      <div style="font-size:12px; color:var(--muted); text-align:center" id="appVer"></div>
+    </div>
+  </div>
 </div>
 
 <div id="lock" hidden>
@@ -228,6 +252,7 @@ function load(){
   catch{}
   if(!data.config) data.config = {};
   if(!Array.isArray(data.aportes)) data.aportes = [];
+  if(!Array.isArray(data.objetivos)) data.objetivos = [];
   // migración: el colchón ya es solo efectivo; lo que hubiera "en banco" se suma
   if(data.config.colchonBanco){
     data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) + (+data.config.colchonBanco||0);
@@ -348,6 +373,31 @@ function render(){
     $('#planLargo').textContent = '';
     $('#planBtn').hidden = true;
   }
+
+  // objetivos
+  $('#objList').innerHTML = data.objetivos.length ? data.objetivos.map(o=>{
+    const ah = +o.ahorrado||0;
+    const p = o.total>0 ? Math.min(100, ah/o.total*100) : 0;
+    return `<div style="padding:8px 0">
+      <div style="display:flex; justify-content:space-between; gap:8px; align-items:center">
+        <span>${esc(o.nombre)}${ah>=o.total?' ✓':''}</span>
+        <span style="white-space:nowrap; font-variant-numeric:tabular-nums"><strong>${fmt(ah)}</strong> / ${fmt(o.total)}</span>
+      </div>
+      <div class="track" style="margin-top:6px"><div class="fill" style="width:${p}%"></div></div>
+      <div style="display:flex; gap:8px; margin-top:6px">
+        <button type="button" class="edit" data-objadd="${o.id}">Aportar</button>
+        <button type="button" class="edit" data-objdel="${o.id}">Borrar</button>
+      </div>
+    </div>`;
+  }).join('') : 'Añade un objetivo — un viaje, una moto, un curso — y ve rellenándolo.';
+
+  // resumen: del mes que estás mirando si es pasado, o del anterior los primeros 7 días
+  const actualYM = now.toISOString().slice(0,7);
+  let resHtml = null;
+  if(ym < actualYM) resHtml = resumenDe(ym);
+  else if(ym===actualYM && now.getUTCDate()<=7) resHtml = resumenDe(mesAnterior(actualYM));
+  $('#resumenTxt').innerHTML = resHtml||'';
+  $('#resumenCard').hidden = !resHtml;
   if(obj>0){
     $('#colMeta').innerHTML = col>=obj
       ? `¡Objetivo de ${fmt(obj)} conseguido!`
@@ -423,8 +473,10 @@ $('#cfgSave').onclick = ()=>{
     banco: parseFloat($('#cfgBanco').value)||0,
     colchonEfectivo: parseFloat($('#cfgColEf').value)||0
   });
-  $('#ajustes').open = false;
+  $('#ajustesPanel').hidden = true;
 };
+$('#ajustesBtn').onclick = ()=>{ $('#ajustesPanel').hidden = false; };
+$('#ajustesCerrar').onclick = ()=>{ $('#ajustesPanel').hidden = true; };
 function editarSaldo(campo, texto){
   const actual = +data.config[campo]||0;
   const v = parseFloat(String(prompt(texto, actual) ?? '').replace(',','.'));
@@ -452,6 +504,62 @@ $('#aporteUndo').onclick = ()=>{
   if(a.sinSumar){ save(); render(); }
   else saveConfig({colchonEfectivo:(+data.config.colchonEfectivo||0)-(+a.importe||0)});
 };
+function mesAnterior(m){
+  const [y,mm] = m.split('-').map(Number);
+  const d = new Date(y, mm-2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+// resumen del mes: números propios + consejo por reglas, nada inventado
+function resumenDe(mes){
+  const gs = data.gastos.filter(g=>g.mes===mes);
+  if(!gs.length) return null;
+  const total = gs.reduce((s,g)=>s+(+g.importe||0),0);
+  const porCat = {};
+  gs.forEach(g=>porCat[g.categoria||'Otros']=(porCat[g.categoria||'Otros']||0)+(+g.importe||0));
+  const top = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+  const presu = +data.config.presupuesto||0;
+  const ap = data.aportes.filter(a=>a.mes===mes).reduce((s,a)=>s+(+a.importe||0),0);
+  const efec = gs.filter(g=>g.pago==='efectivo');
+  const [y,mm] = mes.split('-');
+  const nom = new Date(+y, mm-1, 1).toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  let h = `<strong style="text-transform:capitalize">${esc(nom)}</strong>: gastaste <strong>${fmt(total)}</strong>`;
+  if(presu>0) h += total<=presu
+    ? ` y te sobraron <strong>${fmt(presu-total)}</strong> del presupuesto`
+    : `, <span style="color:var(--bad)"><strong>${fmt(total-presu)}</strong> por encima</span> del presupuesto`;
+  h += `. Donde más: ${top.slice(0,2).map(([c,v])=>`${esc(c)} (${fmt(v)})`).join(' y ')}.`;
+  if(ap>0) h += ` Aportaste <strong>${fmt(ap)}</strong> al colchón.`;
+  if(efec.length) h += ` <span style="color:var(--bad)">Tiraste del colchón ${efec.length} ${efec.length===1?'vez':'veces'} (${fmt(efec.reduce((s,g)=>s+(+g.importe||0),0))}).</span>`;
+  let consejo;
+  if(presu>0 && total>presu) consejo = `Consejo: tu mayor fuga fue ${esc(top[0][0])}. Ponle un tope de ${fmt(Math.round(top[0][1]*0.8))} este mes (un 20 % menos) y vuelves a presupuesto.`;
+  else if(presu>0) consejo = 'Consejo: lo que te sobró, muévelo ya al colchón o a un objetivo antes de que se gaste solo.';
+  else consejo = 'Consejo: fija un presupuesto en Ajustes para poder compararte mes a mes.';
+  if((porCat['Suscripciones']||0) > total*0.15) consejo += ' Y revisa las suscripciones: pasan del 15 % de tu gasto.';
+  return h + `<div style="margin-top:6px">${consejo}</div>`;
+}
+$('#objAdd').onclick = ()=>{
+  const nombre = (prompt('¿Para qué ahorras? (nombre del objetivo)')||'').trim();
+  if(!nombre) return;
+  const total = parseFloat(String(prompt(`¿Cuánto cuesta "${nombre}"? (€)`)??'').replace(',','.'));
+  if(!(total>0)) return;
+  data.objetivos.push({id:crypto.randomUUID(), nombre, total, ahorrado:0});
+  save(); render();
+};
+$('#objList').addEventListener('click', e=>{
+  const add = e.target.closest('[data-objadd]'), del = e.target.closest('[data-objdel]');
+  if(add){
+    const o = data.objetivos.find(x=>x.id===add.dataset.objadd);
+    if(!o) return;
+    const v = parseFloat(String(prompt(`¿Cuánto añades a "${o.nombre}"? (€)`)??'').replace(',','.'));
+    if(v>0){ o.ahorrado = (+o.ahorrado||0)+v; save(); render(); }
+  }
+  if(del){
+    const o = data.objetivos.find(x=>x.id===del.dataset.objdel);
+    if(o && confirm(`¿Borrar el objetivo "${o.nombre}"?`)){
+      data.objetivos = data.objetivos.filter(x=>x!==o);
+      save(); render();
+    }
+  }
+});
 $('#planBtn').onclick = ()=> saveConfig({presupuesto: +$('#planBtn').dataset.gasto||0});
 $('#bancoAddBtn').onclick = ()=>{
   const x = parseFloat($('#bancoAdd').value);
@@ -475,6 +583,7 @@ $('#bkFile').onchange = e=>{
       const d = JSON.parse(t);
       if(!d || !Array.isArray(d.gastos) || typeof d.config!=='object') throw 0;
       if(!Array.isArray(d.aportes)) d.aportes = [];
+      if(!Array.isArray(d.objetivos)) d.objetivos = [];
       data = d; save(); fillCfg(); render();
     }catch{ BANNER('Ese archivo no es una copia de seguridad válida.'); }
   });
@@ -554,7 +663,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 11'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 12'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
