@@ -31,7 +31,13 @@ html,body{overflow-x:clip; max-width:100%; overscroll-behavior-x:none;}
 body{touch-action:pan-y;}
 body{background:var(--bg); color:var(--ink); font-family:"Archivo",system-ui,sans-serif; margin:0;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
-.wrap{max-width:560px; margin:0 auto; padding-inline:16px; padding-block:20px 48px; display:flex; flex-direction:column; gap:16px;}
+.wrap{max-width:560px; margin:0 auto; padding-inline:16px; padding-block:20px 96px; display:flex; flex-direction:column; gap:16px;}
+#tabs{position:fixed; left:0; right:0; bottom:0; display:flex; background:var(--card); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom,0px); z-index:5;}
+#tabs button{flex:1; background:none; border:0; padding:13px 0 11px; font:inherit; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer;}
+#tabs button.on{color:var(--accent);}
+.minis{display:flex; gap:12px;}
+.minis .card{flex:1;}
+.minis .num{font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px;}
 header{display:flex; align-items:center; justify-content:space-between; gap:8px;}
 h1{font-size:19px; font-weight:800; letter-spacing:-.02em; margin:0;}
 .monthnav{display:flex; align-items:center; gap:4px;}
@@ -123,7 +129,7 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
 
   <div id="banner" hidden></div>
 
-  <section class="card">
+  <section class="card" data-tab="inicio">
     <div class="label">Gastado este mes</div>
     <div class="big" id="totalMes">0 €</div>
     <div class="sub" id="presuLine">Fija tu presupuesto mensual en Ajustes, abajo.</div>
@@ -131,12 +137,17 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     <div class="sub" id="ritmoLine" hidden></div>
   </section>
 
-  <section class="card" id="resumenCard" hidden>
+  <div class="minis" data-tab="inicio">
+    <div class="card"><div class="label">Banco</div><div class="num" id="bancoMini">0 €</div></div>
+    <div class="card"><div class="label">Colchón</div><div class="num" id="colMini">0 €</div></div>
+  </div>
+
+  <section class="card" id="resumenCard" data-tab="inicio" hidden>
     <div class="label">Resumen del mes</div>
     <div class="sub" id="resumenTxt" style="margin-top:8px"></div>
   </section>
 
-  <section class="card">
+  <section class="card" data-tab="inicio">
     <div class="label">Apuntar gasto</div>
     <form class="add" id="addForm" style="margin-top:12px">
       <input id="fImporte" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="€" required aria-label="Importe en euros">
@@ -154,7 +165,7 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     </form>
   </section>
 
-  <section class="card">
+  <section class="card" data-tab="gastos">
     <div class="label">Por categoría</div>
     <div class="cats" id="cats"></div>
     <div class="label" style="margin-top:20px">Movimientos</div>
@@ -162,7 +173,7 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     <div class="empty" id="emptyMsg">Aún no hay gastos este mes. Apunta el primero arriba.</div>
   </section>
 
-  <section class="card">
+  <section class="card" data-tab="ahorro">
     <div class="cardhead"><div class="label">En el banco</div><button type="button" class="edit" id="bancoEdit">Editar</button></div>
     <div class="big" id="bancoActual">0 €</div>
     <div class="sub" style="font-size:12px">Tu dinero del día a día. Los gastos pagados con banco se descuentan solos.</div>
@@ -172,7 +183,7 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" data-tab="ahorro">
     <div class="cardhead"><div class="label">Colchón</div><button type="button" class="edit" id="colEdit">Editar</button></div>
     <div class="big" id="colActual">0 €</div>
     <div class="sub" style="font-size:12px">Tu efectivo, aparte del banco. Solo para emergencias: los gastos pagados en efectivo se descuentan solos.</div>
@@ -190,7 +201,7 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" data-tab="plan">
     <div class="label">Plan de ahorro</div>
     <div class="sub" id="planTexto" style="margin-top:8px"></div>
     <div class="sub" id="planLargo" style="font-size:12px"></div>
@@ -206,7 +217,7 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     </details>
   </section>
 
-  <section class="card">
+  <section class="card" data-tab="ahorro">
     <div class="cardhead"><div class="label">Objetivos</div><button type="button" class="edit" id="objAdd">Añadir</button></div>
     <div class="sub" id="objList" style="margin-top:8px"></div>
   </section>
@@ -231,6 +242,13 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     </div>
   </div>
 </div>
+
+<nav id="tabs">
+  <button type="button" data-t="inicio" class="on">Inicio</button>
+  <button type="button" data-t="gastos">Gastos</button>
+  <button type="button" data-t="ahorro">Ahorro</button>
+  <button type="button" data-t="plan">Plan</button>
+</nav>
 
 <div id="dlg" hidden>
   <div class="dlgbox">
@@ -349,6 +367,8 @@ function render(){
   $('#emptyMsg').hidden = gastos.length>0;
 
   $('#bancoActual').textContent = fmt(+config.banco||0);
+  $('#bancoMini').textContent = fmt(+config.banco||0);
+  $('#colMini').textContent = fmt(+config.colchonEfectivo||0);
   const col = +config.colchonEfectivo||0, obj = +config.objetivoColchon||0;
   $('#colActual').textContent = fmt(col);
 
@@ -708,7 +728,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 14'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 15'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
@@ -731,6 +751,18 @@ document.addEventListener('touchstart', e=>{
 document.addEventListener('touchmove', e=>{
   if(pullY!==null && e.touches[0].clientY - pullY > 100){ pullY = null; actualizar(); }
 },{passive:true});
+
+// pestañas: cada sección lleva data-tab; solo se ve la activa
+function aplicarTab(t){
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+  document.querySelectorAll('[data-tab]').forEach(s=>{ s.style.display = s.dataset.tab===t ? '' : 'none'; });
+  scrollTo(0,0);
+}
+$('#tabs').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-t]');
+  if(b) aplicarTab(b.dataset.t);
+});
+aplicarTab('inicio');
 
 load(); fillCfg(); render();
 navigator.serviceWorker?.register('sw.js').catch(()=>{});
