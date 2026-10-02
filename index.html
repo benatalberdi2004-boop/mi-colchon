@@ -76,6 +76,13 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
 .colrow{display:flex; gap:8px; margin-top:12px;}
 .colrow input{flex:1;}
 .colrow button{background:var(--accent-soft); color:var(--accent); border:0; border-radius:8px; padding:0 14px; font:inherit; font-weight:700; cursor:pointer;}
+#dlg{position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:30; display:flex; align-items:center; justify-content:center; padding:24px;}
+#dlg .dlgbox{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; width:100%; max-width:340px; display:flex; flex-direction:column; gap:12px;}
+#dlgTitulo{font-weight:700; font-size:16px; text-wrap:balance;}
+#dlg .dlgrow{display:flex; gap:8px;}
+#dlg .dlgrow button{flex:1; border-radius:8px; padding:12px; font:inherit; font-weight:700; border:0; cursor:pointer;}
+#dlgCancel{background:var(--bg); color:var(--muted); border:1px solid var(--line);}
+#dlgOk{background:var(--accent); color:var(--card);}
 #ajustesPanel{position:fixed; inset:0; background:var(--bg); z-index:9; overflow-y:auto;
   padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 32px);}
 #ajustesPanel .inner{max-width:560px; margin:0 auto;}
@@ -222,6 +229,17 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
       <button type="button" class="primary" id="bkDown" style="background:var(--accent-soft); color:var(--accent)">Descargar copia de seguridad</button>
       <label>Restaurar copia de seguridad<input id="bkFile" type="file" accept=".json,application/json"></label>
       <div style="font-size:12px; color:var(--muted); text-align:center" id="appVer"></div>
+    </div>
+  </div>
+</div>
+
+<div id="dlg" hidden>
+  <div class="dlgbox">
+    <div id="dlgTitulo"></div>
+    <input id="dlgInput" hidden>
+    <div class="dlgrow">
+      <button type="button" id="dlgCancel">Cancelar</button>
+      <button type="button" id="dlgOk">Aceptar</button>
     </div>
   </div>
 </div>
@@ -477,10 +495,9 @@ $('#cfgSave').onclick = ()=>{
 };
 $('#ajustesBtn').onclick = ()=>{ $('#ajustesPanel').hidden = false; };
 $('#ajustesCerrar').onclick = ()=>{ $('#ajustesPanel').hidden = true; };
-function editarSaldo(campo, texto){
-  const actual = +data.config[campo]||0;
-  const v = parseFloat(String(prompt(texto, actual) ?? '').replace(',','.'));
-  if(!isNaN(v)) saveConfig({[campo]: v});
+async function editarSaldo(campo, texto){
+  const v = await pedirNum(texto, +data.config[campo]||0);
+  if(v!==null && !isNaN(v)) saveConfig({[campo]: v});
 }
 $('#bancoEdit').onclick = ()=> editarSaldo('banco', '¿Cuánto tienes en el banco? (€)');
 $('#colEdit').onclick = ()=> editarSaldo('colchonEfectivo', '¿Cuánto tienes en el colchón? (€)');
@@ -491,9 +508,9 @@ $('#colAddBtn').onclick = ()=>{
   saveConfig({colchonEfectivo:(+data.config.colchonEfectivo||0)+x});
   $('#colAdd').value='';
 };
-$('#aporteReg').onclick = ()=>{
+$('#aporteReg').onclick = async ()=>{
   // registra la aportación en el mes sin tocar el saldo (ya estaba contada)
-  const v = parseFloat(String(prompt('Aporte ya incluido en el saldo (€):') ?? '').replace(',','.'));
+  const v = await pedirNum('Aporte ya incluido en el saldo (€)');
   if(!(v>0)) return;
   data.aportes.push({id:crypto.randomUUID(), mes:hoyLocal().toISOString().slice(0,7), importe:v, sinSumar:true, creado:Date.now()});
   save(); render();
@@ -504,6 +521,34 @@ $('#aporteUndo').onclick = ()=>{
   if(a.sinSumar){ save(); render(); }
   else saveConfig({colchonEfectivo:(+data.config.colchonEfectivo||0)-(+a.importe||0)});
 };
+// diálogo propio en lugar del prompt/confirm nativo del navegador
+function dialogo({titulo, input=null, ok='Aceptar', peligro=false}){
+  return new Promise(res=>{
+    $('#dlgTitulo').textContent = titulo;
+    const inp = $('#dlgInput'), okB = $('#dlgOk');
+    if(input){
+      inp.hidden = false;
+      inp.type = input.tipo==='number' ? 'number' : 'text';
+      inp.inputMode = input.tipo==='number' ? 'decimal' : 'text';
+      inp.placeholder = input.placeholder||'';
+      inp.value = input.valor??'';
+    } else inp.hidden = true;
+    okB.textContent = ok;
+    okB.style.background = peligro ? 'var(--bad)' : 'var(--accent)';
+    $('#dlg').hidden = false;
+    if(input) setTimeout(()=>inp.focus(), 60);
+    const fin = v=>{ $('#dlg').hidden = true; okB.onclick = $('#dlgCancel').onclick = inp.onkeydown = null; res(v); };
+    okB.onclick = ()=> fin(input ? inp.value : true);
+    $('#dlgCancel').onclick = ()=> fin(null);
+    inp.onkeydown = e=>{ if(e.key==='Enter') fin(inp.value); };
+  });
+}
+async function pedirNum(titulo, valor=''){
+  const v = await dialogo({titulo, input:{tipo:'number', valor}});
+  if(v===null || String(v).trim()==='') return null;
+  return parseFloat(String(v).replace(',','.'));
+}
+
 function mesAnterior(m){
   const [y,mm] = m.split('-').map(Number);
   const d = new Date(y, mm-2, 1);
@@ -536,25 +581,25 @@ function resumenDe(mes){
   if((porCat['Suscripciones']||0) > total*0.15) consejo += ' Y revisa las suscripciones: pasan del 15 % de tu gasto.';
   return h + `<div style="margin-top:6px">${consejo}</div>`;
 }
-$('#objAdd').onclick = ()=>{
-  const nombre = (prompt('¿Para qué ahorras? (nombre del objetivo)')||'').trim();
+$('#objAdd').onclick = async ()=>{
+  const nombre = ((await dialogo({titulo:'¿Para qué ahorras?', input:{tipo:'text', placeholder:'Viaje, moto, curso…'}}))||'').trim();
   if(!nombre) return;
-  const total = parseFloat(String(prompt(`¿Cuánto cuesta "${nombre}"? (€)`)??'').replace(',','.'));
+  const total = await pedirNum(`¿Cuánto cuesta "${nombre}"? (€)`);
   if(!(total>0)) return;
   data.objetivos.push({id:crypto.randomUUID(), nombre, total, ahorrado:0});
   save(); render();
 };
-$('#objList').addEventListener('click', e=>{
+$('#objList').addEventListener('click', async e=>{
   const add = e.target.closest('[data-objadd]'), del = e.target.closest('[data-objdel]');
   if(add){
     const o = data.objetivos.find(x=>x.id===add.dataset.objadd);
     if(!o) return;
-    const v = parseFloat(String(prompt(`¿Cuánto añades a "${o.nombre}"? (€)`)??'').replace(',','.'));
+    const v = await pedirNum(`¿Cuánto añades a "${o.nombre}"? (€)`);
     if(v>0){ o.ahorrado = (+o.ahorrado||0)+v; save(); render(); }
   }
   if(del){
     const o = data.objetivos.find(x=>x.id===del.dataset.objdel);
-    if(o && confirm(`¿Borrar el objetivo "${o.nombre}"?`)){
+    if(o && await dialogo({titulo:`¿Borrar el objetivo "${o.nombre}"?`, ok:'Borrar', peligro:true})){
       data.objetivos = data.objetivos.filter(x=>x!==o);
       save(); render();
     }
@@ -663,7 +708,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 12'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 13'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
