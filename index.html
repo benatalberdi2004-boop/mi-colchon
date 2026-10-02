@@ -194,7 +194,6 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     <div class="label">Plan de ahorro</div>
     <div class="sub" id="planTexto" style="margin-top:8px"></div>
     <div class="sub" id="planLargo" style="font-size:12px"></div>
-    <button type="button" class="primary" id="planBtn" style="margin-top:12px; width:100%" hidden></button>
     <details style="margin-top:12px">
       <summary style="font-size:13px; font-weight:600; color:var(--muted); cursor:pointer">Cómo invertir lo ahorrado</summary>
       <div class="sub" style="font-size:13px; line-height:1.5">
@@ -369,9 +368,16 @@ function render(){
   // plan de ahorro: regla del 20 % sobre los ingresos
   const ing = (+config.pension||0) + (+config.nomina||0);
   if(ing>0){
-    const ahorro = Math.round(ing*0.2);
+    // su aportación media real (últimos 3 meses con aporte); si no hay, la regla del 20 %
+    const apMes = {};
+    data.aportes.forEach(a=>apMes[a.mes]=(apMes[a.mes]||0)+(+a.importe||0));
+    const ultimos = Object.keys(apMes).sort().reverse().slice(0,3);
+    const media = ultimos.length ? Math.round(ultimos.reduce((s,m)=>s+apMes[m],0)/ultimos.length) : 0;
+    const ahorro = media>0 ? media : Math.round(ing*0.2);
     const gastoSug = Math.round(ing-ahorro);
-    let html = `Ingresas <strong>${fmt(ing)}</strong> al mes. Guarda <strong>${fmt(ahorro)}</strong> (el 20 %) nada más cobrar y vive con <strong>${fmt(gastoSug)}</strong>.`;
+    let html = media>0
+      ? `Ingresas <strong>${fmt(ing)}</strong> y sueles aportar <strong>${fmt(media)}</strong> al colchón: te quedan <strong>${fmt(gastoSug)}</strong> para vivir el mes. Ese es tu presupuesto coherente — ponlo en Ajustes y la tarjeta de arriba vigilará el tope por ti.`
+      : `Ingresas <strong>${fmt(ing)}</strong>. Para empezar: guarda el 20 % (<strong>${fmt(ahorro)}</strong>) nada más cobrar y vive con <strong>${fmt(gastoSug)}</strong>. Cuando registres aportaciones, este plan usará tu ritmo real.`;
     if(obj>col && ahorro>0){
       const meses = Math.ceil((obj-col)/ahorro);
       const f = new Date(); f.setMonth(f.getMonth()+meses);
@@ -382,14 +388,9 @@ function render(){
     const añosInv = Math.round(Math.log(1 + 1000000*r/ahorro)/Math.log(1+r)/12);
     const añosSin = Math.round(1000000/ahorro/12);
     $('#planLargo').textContent = `El millón: guardando ${fmt(ahorro)} al mes tardarías ~${añosSin} años; invertido al 7 % anual, ~${añosInv} años. El interés compuesto es el único atajo real.`;
-    const pb = $('#planBtn');
-    pb.hidden = (+config.presupuesto||0)===gastoSug;
-    pb.textContent = `Usar ${fmt(gastoSug)} como presupuesto`;
-    pb.dataset.gasto = gastoSug;
   } else {
     $('#planTexto').textContent = 'Pon tu pensión y tu nómina en Ajustes y te digo cuánto guardar cada mes.';
     $('#planLargo').textContent = '';
-    $('#planBtn').hidden = true;
   }
 
   // objetivos
@@ -605,7 +606,6 @@ $('#objList').addEventListener('click', async e=>{
     }
   }
 });
-$('#planBtn').onclick = ()=> saveConfig({presupuesto: +$('#planBtn').dataset.gasto||0});
 $('#bancoAddBtn').onclick = ()=>{
   const x = parseFloat($('#bancoAdd').value);
   if(!(x>0)) return;
@@ -708,7 +708,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 13'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 14'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
