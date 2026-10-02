@@ -107,7 +107,7 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
 
 <div class="wrap">
   <header>
-    <div style="display:flex; align-items:center; gap:9px;">
+    <div id="logoHome" style="display:flex; align-items:center; gap:9px; cursor:pointer;">
       <svg width="30" height="30" viewBox="0 0 48 48" style="color:var(--accent)" aria-hidden="true">
         <circle cx="24" cy="11" r="9" fill="#f2c94c"/>
         <circle cx="24" cy="11" r="6" fill="none" stroke="#d9a93a" stroke-width="2.5"/>
@@ -141,6 +141,15 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
     <div class="card"><div class="label">Banco</div><div class="num" id="bancoMini">0 €</div></div>
     <div class="card"><div class="label">Colchón</div><div class="num" id="colMini">0 €</div></div>
   </div>
+
+  <section class="card" id="bkAviso" data-tab="inicio" hidden>
+    <div class="label">Copia de seguridad</div>
+    <div class="sub" style="margin-top:6px">Tus datos viven solo en este móvil. Empieza el mes: guarda una copia por si acaso.</div>
+    <div style="display:flex; gap:8px; margin-top:10px">
+      <button type="button" class="edit" id="bkAvisoSi">Descargar copia</button>
+      <button type="button" class="edit" id="bkAvisoNo">Este mes no</button>
+    </div>
+  </section>
 
   <section class="card" id="resumenCard" data-tab="inicio" hidden>
     <div class="label">Resumen del mes</div>
@@ -236,7 +245,10 @@ ul.gastos button.armed{border-color:var(--bad); color:var(--bad); font-weight:60
       <label>Colchón actual (€)<input id="cfgColEf" type="number" step="0.01" min="0"></label>
       <button type="button" class="primary" id="cfgSave">Guardar ajustes</button>
       <button type="button" class="primary" id="cfgLock" style="background:var(--accent-soft); color:var(--accent)">Activar bloqueo con Face ID</button>
-      <button type="button" class="primary" id="bkDown" style="background:var(--accent-soft); color:var(--accent)">Descargar copia de seguridad</button>
+      <div class="label" style="margin-top:8px">Gastos fijos mensuales</div>
+      <div class="sub" id="fijosList" style="font-size:13px"></div>
+      <button type="button" class="edit" id="fijoAdd">Añadir gasto fijo</button>
+      <button type="button" class="primary" id="bkDown" style="background:var(--accent-soft); color:var(--accent); margin-top:8px">Descargar copia de seguridad</button>
       <label>Restaurar copia de seguridad<input id="bkFile" type="file" accept=".json,application/json"></label>
       <div style="font-size:12px; color:var(--muted); text-align:center" id="appVer"></div>
     </div>
@@ -288,12 +300,33 @@ function load(){
   if(!data.config) data.config = {};
   if(!Array.isArray(data.aportes)) data.aportes = [];
   if(!Array.isArray(data.objetivos)) data.objetivos = [];
+  if(!Array.isArray(data.fijos)) data.fijos = [];
   // migración: el colchón ya es solo efectivo; lo que hubiera "en banco" se suma
   if(data.config.colchonBanco){
     data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) + (+data.config.colchonBanco||0);
     delete data.config.colchonBanco;
     save();
   }
+}
+// apunta los gastos fijos del mes cuando llega su día (una sola vez por mes)
+function aplicarFijos(){
+  const m = hoyLocal().toISOString().slice(0,7);
+  const dia = hoyLocal().getUTCDate();
+  let hubo = false;
+  for(const f of data.fijos){
+    f.aplicado = f.aplicado||[];
+    if(dia >= f.dia && !f.aplicado.includes(m)){
+      f.aplicado.push(m);
+      data.gastos.push({
+        id:crypto.randomUUID(), importe:+f.importe, mes:m,
+        fecha:`${m}-${String(f.dia).padStart(2,'0')}`, pago:'banco',
+        categoria:f.categoria||'Suscripciones', nota:`${f.nombre} (fijo)`, creado:Date.now()
+      });
+      data.config.banco = (+data.config.banco||0) - (+f.importe||0);
+      hubo = true;
+    }
+  }
+  if(hubo) save();
 }
 function save(){
   try{ localStorage.setItem('mc', JSON.stringify(data)); $('#banner').hidden = true; }
@@ -362,7 +395,7 @@ function render(){
   $('#lista').innerHTML = orden.map(g=>{
     const d = g.fecha ? new Date(g.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'}) : '';
     const pago = g.pago==='efectivo' ? '</span><span style="color:var(--bad); font-weight:600"> · colchón' : '';
-    return `<li><div class="meta"><div>${esc(g.categoria||'Otros')} · <span style="color:var(--muted)">${d}${pago}</span></div>${g.nota?`<div class="nota">${esc(g.nota)}</div>`:''}</div><span class="imp">${fmt(+g.importe||0)}</span><button data-del="${g.id}">Borrar</button></li>`;
+    return `<li data-id="${g.id}"><div class="meta"><div>${esc(g.categoria||'Otros')} · <span style="color:var(--muted)">${d}${pago}</span></div>${g.nota?`<div class="nota">${esc(g.nota)}</div>`:''}</div><span class="imp">${fmt(+g.importe||0)}</span><button data-del="${g.id}">Borrar</button></li>`;
   }).join('');
   $('#emptyMsg').hidden = gastos.length>0;
 
@@ -376,11 +409,12 @@ function render(){
   const porMesAp = {};
   for(const a of data.aportes) porMesAp[a.mes] = (porMesAp[a.mes]||0) + (+a.importe||0);
   const mesesAp = Object.keys(porMesAp).sort().reverse().slice(0,6);
+  const maxAp = mesesAp.length ? Math.max(...mesesAp.map(m=>porMesAp[m])) : 1;
   $('#colAportes').innerHTML = mesesAp.length
     ? mesesAp.map(m=>{
         const [y,mm] = m.split('-');
         const nom = new Date(+y, mm-1, 1).toLocaleDateString('es-ES',{month:'short',year:'numeric'});
-        return `<div style="display:flex; justify-content:space-between; padding:3px 0"><span>${nom}</span><strong>${fmt(porMesAp[m])}</strong></div>`;
+        return `<div style="padding:3px 0"><div style="display:flex; justify-content:space-between"><span>${nom}</span><strong>${fmt(porMesAp[m])}</strong></div><div class="track" style="margin-top:4px; height:6px"><div class="fill" style="width:${Math.max(3, porMesAp[m]/maxAp*100)}%"></div></div></div>`;
       }).join('')
     : 'Aún no has apuntado ninguna aportación.';
   $('#aporteUndo').hidden = data.aportes.length===0;
@@ -452,6 +486,14 @@ function render(){
   else if(ym===actualYM && now.getUTCDate()<=7) resHtml = resumenDe(mesAnterior(actualYM));
   $('#resumenTxt').innerHTML = resHtml||'';
   $('#resumenCard').hidden = !resHtml;
+
+  // aviso de copia de seguridad: primera semana del mes, una vez al mes
+  $('#bkAviso').hidden = !(now.getUTCDate()<=7 && LS.get('bkMes')!==actualYM && data.gastos.length>0);
+
+  // gastos fijos configurados (en Ajustes)
+  $('#fijosList').innerHTML = data.fijos.length
+    ? data.fijos.map(f=>`<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 0"><span>${esc(f.nombre)} · día ${f.dia}</span><span style="white-space:nowrap"><strong>${fmt(f.importe)}</strong> <button type="button" class="edit" data-fijodel="${f.id}">Borrar</button></span></div>`).join('')
+    : 'Ninguno. El alquiler, Netflix, el gimnasio… se apuntan solos cada mes el día que toque.';
   if(obj>0){
     $('#colMeta').innerHTML = col>=obj
       ? `¡Objetivo de ${fmt(obj)} conseguido!`
@@ -483,18 +525,32 @@ $('#addForm').addEventListener('submit', e=>{
   render();
 });
 
-$('#lista').addEventListener('click', e=>{
+$('#lista').addEventListener('click', async e=>{
   const btn = e.target.closest('button[data-del]');
-  if(!btn) return;
-  if(btn.dataset.armed){
-    const g = data.gastos.find(x=>x.id===btn.dataset.del);
-    if(g?.pago==='efectivo') data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) + (+g.importe||0);
-    else if(g?.pago==='banco') data.config.banco = (+data.config.banco||0) + (+g.importe||0);
-    data.gastos = data.gastos.filter(x=>x.id!==btn.dataset.del);
-    save(); fillCfg(); render(); return;
+  if(btn){
+    if(btn.dataset.armed){
+      const g = data.gastos.find(x=>x.id===btn.dataset.del);
+      if(g?.pago==='efectivo') data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) + (+g.importe||0);
+      else if(g?.pago==='banco') data.config.banco = (+data.config.banco||0) + (+g.importe||0);
+      data.gastos = data.gastos.filter(x=>x.id!==btn.dataset.del);
+      save(); fillCfg(); render(); return;
+    }
+    btn.dataset.armed='1'; btn.classList.add('armed'); btn.textContent='¿Seguro?';
+    setTimeout(()=>{ delete btn.dataset.armed; btn.classList.remove('armed'); btn.textContent='Borrar'; }, 3000);
+    return;
   }
-  btn.dataset.armed='1'; btn.classList.add('armed'); btn.textContent='¿Seguro?';
-  setTimeout(()=>{ delete btn.dataset.armed; btn.classList.remove('armed'); btn.textContent='Borrar'; }, 3000);
+  // tocar el gasto = editar su importe; el ajuste se refleja en su fuente
+  const li = e.target.closest('li[data-id]');
+  if(!li) return;
+  const g = data.gastos.find(x=>x.id===li.dataset.id);
+  if(!g) return;
+  const v = await pedirNum(`Importe de ${g.categoria||'Otros'}${g.nota?` · ${g.nota}`:''} (€)`, +g.importe||0);
+  if(v===null || isNaN(v) || !(v>0) || v===+g.importe) return;
+  const delta = v - (+g.importe||0);
+  if(g.pago==='efectivo') data.config.colchonEfectivo = (+data.config.colchonEfectivo||0) - delta;
+  else if(g.pago==='banco') data.config.banco = (+data.config.banco||0) - delta;
+  g.importe = v;
+  save(); fillCfg(); render();
 });
 
 function fillCfg(){
@@ -648,14 +704,40 @@ $('#bancoAddBtn').onclick = ()=>{
   $('#bancoAdd').value='';
 };
 
-$('#bkDown').onclick = ()=>{
+function descargarCopia(){
   const blob = new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `mi-colchon-${hoyLocal().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
+  LS.set('bkMes', hoyLocal().toISOString().slice(0,7));
+  render();
+}
+$('#bkDown').onclick = descargarCopia;
+$('#bkAvisoSi').onclick = descargarCopia;
+$('#bkAvisoNo').onclick = ()=>{ LS.set('bkMes', hoyLocal().toISOString().slice(0,7)); render(); };
+$('#fijoAdd').onclick = async ()=>{
+  const nombre = ((await dialogo({titulo:'Nombre del gasto fijo', input:{tipo:'text', placeholder:'Netflix, gimnasio, móvil…'}}))||'').trim();
+  if(!nombre) return;
+  const importe = await pedirNum(`¿Cuánto es "${nombre}" al mes? (€)`);
+  if(!(importe>0)) return;
+  let dia = await pedirNum('¿Qué día del mes se cobra? (1-28)');
+  if(dia===null || isNaN(dia)) return;
+  dia = Math.min(28, Math.max(1, Math.round(dia)));
+  const categoria = ((await dialogo({titulo:'Categoría', input:{tipo:'text', valor:'Suscripciones', placeholder:'Comida, Casa, Ocio…'}}))||'').trim()||'Suscripciones';
+  data.fijos.push({id:crypto.randomUUID(), nombre, importe, dia, categoria, aplicado:[]});
+  aplicarFijos(); save(); fillCfg(); render();
 };
+$('#fijosList').addEventListener('click', async e=>{
+  const b = e.target.closest('[data-fijodel]');
+  if(!b) return;
+  const f = data.fijos.find(x=>x.id===b.dataset.fijodel);
+  if(f && await dialogo({titulo:`¿Borrar el gasto fijo "${f.nombre}"?`, ok:'Borrar', peligro:true})){
+    data.fijos = data.fijos.filter(x=>x!==f);
+    save(); render();
+  }
+});
 $('#bkFile').onchange = e=>{
   const f = e.target.files[0]; if(!f) return;
   f.text().then(t=>{
@@ -664,6 +746,7 @@ $('#bkFile').onchange = e=>{
       if(!d || !Array.isArray(d.gastos) || typeof d.config!=='object') throw 0;
       if(!Array.isArray(d.aportes)) d.aportes = [];
       if(!Array.isArray(d.objetivos)) d.objetivos = [];
+      if(!Array.isArray(d.fijos)) d.fijos = [];
       data = d; save(); fillCfg(); render();
     }catch{ BANNER('Ese archivo no es una copia de seguridad válida.'); }
   });
@@ -743,7 +826,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 17'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 18'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
@@ -777,9 +860,10 @@ $('#tabs').addEventListener('click', e=>{
   const b = e.target.closest('button[data-t]');
   if(b) aplicarTab(b.dataset.t);
 });
+$('#logoHome').onclick = ()=> aplicarTab('inicio');
 aplicarTab('inicio');
 
-load(); fillCfg(); render();
+load(); aplicarFijos(); fillCfg(); render();
 navigator.serviceWorker?.register('sw.js').catch(()=>{});
 </script>
 </body>
