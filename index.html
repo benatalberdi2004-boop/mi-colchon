@@ -403,6 +403,21 @@ function render(){
       const f = new Date(); f.setMonth(f.getMonth()+meses);
       html += ` A ese ritmo llegas a tu objetivo de colchón en <strong>${meses} ${meses===1?'mes':'meses'}</strong> (${f.toLocaleDateString('es-ES',{month:'short',year:'numeric'})}).`;
     }
+    // proyección en vivo del mes en curso: con cada gasto cambia el pronóstico
+    const mesAct = now.toISOString().slice(0,7);
+    const gAct = data.gastos.filter(g=>g.mes===mesAct).reduce((s,g)=>s+(+g.importe||0),0);
+    const diaAct = now.getUTCDate();
+    const [ya,ma] = mesAct.split('-').map(Number);
+    const diasMesAct = new Date(ya, ma, 0).getDate();
+    if(gAct>0 && diaAct>=3){
+      const proy = Math.round(gAct/diaAct*diasMesAct);
+      const margen = Math.round(ing - proy);
+      html += margen >= ahorro
+        ? `<div style="margin-top:6px">Este mes llevas ${fmt(gAct)} gastados; a este ritmo cerrarás en ~<strong>${fmt(proy)}</strong> — te salen los <strong>${fmt(ahorro)}</strong> de aportación con margen.</div>`
+        : margen > 0
+          ? `<div style="margin-top:6px; color:var(--bad)">Ojo: a este ritmo cerrarás el mes en ~${fmt(proy)} y solo te saldría aportar ~${fmt(margen)}. Frena donde más estás gastando.</div>`
+          : `<div style="margin-top:6px; color:var(--bad)">Ojo: a este ritmo (~${fmt(proy)}) gastarías más de lo que ingresas este mes.</div>`;
+    }
     $('#planTexto').innerHTML = html;
     const r = 0.07/12;
     const añosInv = Math.round(Math.log(1 + 1000000*r/ahorro)/Math.log(1+r)/12);
@@ -728,7 +743,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 15'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 16'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
