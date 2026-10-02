@@ -170,9 +170,18 @@ details.ajustes label{font-size:12px; color:var(--muted); display:flex; flex-dir
   </section>
 
   <section class="card">
+    <div class="label">Plan de ahorro</div>
+    <div class="sub" id="planTexto" style="margin-top:8px"></div>
+    <div class="sub" id="planLargo" style="font-size:12px"></div>
+    <button type="button" class="primary" id="planBtn" style="margin-top:12px; width:100%" hidden></button>
+  </section>
+
+  <section class="card">
     <details class="ajustes" id="ajustes">
       <summary>Ajustes</summary>
       <div class="grid">
+        <label>Pensión mensual (€)<input id="cfgPension" type="number" step="0.01" min="0"></label>
+        <label>Nómina mensual (€)<input id="cfgNomina" type="number" step="0.01" min="0"></label>
         <label>Presupuesto mensual de gasto (€)<input id="cfgPresu" type="number" step="1" min="0"></label>
         <label>Objetivo del colchón (€)<input id="cfgObj" type="number" step="1" min="0"></label>
         <label>Dinero en el banco (€)<input id="cfgBanco" type="number" step="0.01"></label>
@@ -293,6 +302,32 @@ function render(){
   $('#bancoActual').textContent = fmt(+config.banco||0);
   const col = +config.colchonEfectivo||0, obj = +config.objetivoColchon||0;
   $('#colActual').textContent = fmt(col);
+
+  // plan de ahorro: regla del 20 % sobre los ingresos
+  const ing = (+config.pension||0) + (+config.nomina||0);
+  if(ing>0){
+    const ahorro = Math.round(ing*0.2);
+    const gastoSug = Math.round(ing-ahorro);
+    let html = `Ingresas <strong>${fmt(ing)}</strong> al mes. Guarda <strong>${fmt(ahorro)}</strong> (el 20 %) nada más cobrar y vive con <strong>${fmt(gastoSug)}</strong>.`;
+    if(obj>col && ahorro>0){
+      const meses = Math.ceil((obj-col)/ahorro);
+      const f = new Date(); f.setMonth(f.getMonth()+meses);
+      html += ` A ese ritmo llegas a tu objetivo de colchón en <strong>${meses} ${meses===1?'mes':'meses'}</strong> (${f.toLocaleDateString('es-ES',{month:'short',year:'numeric'})}).`;
+    }
+    $('#planTexto').innerHTML = html;
+    const r = 0.07/12;
+    const añosInv = Math.round(Math.log(1 + 1000000*r/ahorro)/Math.log(1+r)/12);
+    const añosSin = Math.round(1000000/ahorro/12);
+    $('#planLargo').textContent = `El millón: guardando ${fmt(ahorro)} al mes tardarías ~${añosSin} años; invertido al 7 % anual, ~${añosInv} años. El interés compuesto es el único atajo real.`;
+    const pb = $('#planBtn');
+    pb.hidden = (+config.presupuesto||0)===gastoSug;
+    pb.textContent = `Usar ${fmt(gastoSug)} como presupuesto`;
+    pb.dataset.gasto = gastoSug;
+  } else {
+    $('#planTexto').textContent = 'Pon tu pensión y tu nómina en Ajustes y te digo cuánto guardar cada mes.';
+    $('#planLargo').textContent = '';
+    $('#planBtn').hidden = true;
+  }
   if(obj>0){
     $('#colMeta').innerHTML = col>=obj
       ? `¡Objetivo de ${fmt(obj)} conseguido!`
@@ -340,6 +375,8 @@ $('#lista').addEventListener('click', e=>{
 
 function fillCfg(){
   const c = data.config;
+  $('#cfgPension').value = c.pension??'';
+  $('#cfgNomina').value = c.nomina??'';
   $('#cfgPresu').value = c.presupuesto??'';
   $('#cfgObj').value = c.objetivoColchon??'';
   $('#cfgBanco').value = c.banco??'';
@@ -347,6 +384,8 @@ function fillCfg(){
 }
 function saveConfig(patch){
   data.config = {
+    pension:+data.config.pension||0,
+    nomina:+data.config.nomina||0,
     presupuesto:+data.config.presupuesto||0,
     objetivoColchon:+data.config.objetivoColchon||0,
     banco:+data.config.banco||0,
@@ -357,6 +396,8 @@ function saveConfig(patch){
 }
 $('#cfgSave').onclick = ()=>{
   saveConfig({
+    pension: parseFloat($('#cfgPension').value)||0,
+    nomina: parseFloat($('#cfgNomina').value)||0,
     presupuesto: parseFloat($('#cfgPresu').value)||0,
     objetivoColchon: parseFloat($('#cfgObj').value)||0,
     banco: parseFloat($('#cfgBanco').value)||0,
@@ -377,6 +418,7 @@ $('#colAddBtn').onclick = ()=>{
   saveConfig({colchonEfectivo:(+data.config.colchonEfectivo||0)+x});
   $('#colAdd').value='';
 };
+$('#planBtn').onclick = ()=> saveConfig({presupuesto: +$('#planBtn').dataset.gasto||0});
 $('#bancoAddBtn').onclick = ()=>{
   const x = parseFloat($('#bancoAdd').value);
   if(!(x>0)) return;
@@ -477,7 +519,7 @@ if(LS.get('lockCred')){
   lockUI('Protege la app con Face ID. Si Face ID falla, el móvil te pedirá su código.', 'Activar Face ID', 'No usar bloqueo');
 }
 
-const APP_V = '2 oct 2026 · 8'; // subir con cada despliegue
+const APP_V = '2 oct 2026 · 9'; // subir con cada despliegue
 $('#appVer').textContent = 'Versión: ' + APP_V + ' — desliza hacia abajo desde arriba del todo para actualizar';
 async function actualizar(){
   const t = document.createElement('div');
